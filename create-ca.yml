@@ -1,0 +1,45 @@
+- hosts: localhost
+
+  vars:
+  - config_root_dir: ~/.pki/ssl
+  - ca_root_dir: "{{config_root_dir}}/CA"
+  - ca_country: XY
+  - ca_state: ABC
+  - ca_organization: Example dot com
+  - ca_common_name: CN=pki,DC=example,DC=com
+  - ca_email: admin@example.com
+
+  vars_prompt:
+    name: ca_pass
+    prompt: "Please enter the CA passphrase"
+
+  tasks:
+  - name: ensure CA directory exists
+    file:
+      path: "{{ca_root_dir}}"
+      state: directory
+
+  - name: ensure index file exists
+    file:
+      path: "{{ca_root_dir}}/index.txt"
+      state: touch
+
+  - name: ensure serial exists
+    shell: echo "01" > "{{ca_root_dir}}/serial"
+    args:
+      creates: "{{ca_root_dir}}/serial"
+
+  - name: create configuration file
+    template:
+      src: openssl-ca.cnf.j2
+      dest: "{{config_root_dir}}/openssl-ca.cnf"
+
+  - name: create root CA certificate
+    command: openssl req -new -x509 -keyout cakey.pem -out cacert.pem -days 3650 -config openssl-ca.cnf -passout "env:CA_PASS"
+    args:
+      creates: "{{config_root_dir}}/cakey.pem"
+      chdir: "{{config_root_dir}}"
+    environment:
+      CA_PASS: "{{ca_pass}}"
+
+
